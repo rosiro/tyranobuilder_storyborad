@@ -6,6 +6,8 @@ use Encode;
 
 my $project_directory = $ARGV[0];
 my $output_directory = $ARGV[1];
+my $max_recursion_deep = 10;
+my $recursion_deep = 0;
 unless($project_directory){
     print "please input project directory.\n";
     print "ex. perl generate_storyboard.pl myproject_directory output_storyboard_directory\n";
@@ -30,8 +32,10 @@ foreach(readdir(DIRHANDLE)){
 closedir(DIRHANDLE);
 
 my @story_board_files = ();
-for my $scenario_file (@scenario_files){
+my @scenario_jump_routes = ();
+my %recursions = {};
 
+for my $scenario_file (@scenario_files){
     # open  file data
     print $scenario_directory.'/'.$scenario_file."\n";
     my $lines;
@@ -64,6 +68,7 @@ for my $scenario_file (@scenario_files){
     my $now_background = "";
     my $now_bgm = "";
     my $line_cnt = 0;
+    my @jump_to = ();
     
     my $charactors_td = "";
     for my $charactor (@charactors){
@@ -87,6 +92,16 @@ for my $scenario_file (@scenario_files){
 	# charactors
 	elsif($scenario_line =~ /#(.*?)$/){
 	    $now_charactor = $1;
+	}
+
+	# jump
+	elsif($scenario_line =~ /\[jump.*?storage="(.*?)"/){
+	    my $jump_storage = $1;
+	    my $jump_target = "";
+	    if($scenario_line =~ /\[jump.*?target="(.*?)"/){
+		$jump_target = $1;
+	    }
+	    push @jump_to,$jump_storage.'___'.$jump_target;
 	}
 	
 	# generate line
@@ -128,7 +143,17 @@ for my $scenario_file (@scenario_files){
 	    $scenario_html .= "</tr>\n";
 	}
     }
-    $scenario_html .= "</table></body></html>";
+    $scenario_html .= "</table>";
+    # jump to
+    $scenario_html .= "<h2>jump scenario</h2>\n";
+    $scenario_html .= "<ul>\n";
+    for my $jump_to (@jump_to){
+	$scenario_html .= "<li><a href=\"".$project_directory."/data/scenario/".$jump_to."\">".$jump_to."</a></li>\n";
+    }
+    $scenario_html .= "</ul>\n";
+    $scenario_html .= "<p><a href=\"index.html\">index</a></p>";
+    $scenario_html .= "</body></html>";
+    
     #p $scenario_html;
 
     # write html
@@ -136,21 +161,26 @@ for my $scenario_file (@scenario_files){
     open(DATAFILE, ">", $output_directory.'/'.$output_filename) or die("Error $output_filename $!");
     print DATAFILE encode("utf8",$scenario_html);
     close(DATAFILE);
-    push @story_board_files,$output_filename;
+    my %story_board_files = (
+	'scenario' => $scenario_file,
+	'jumps' => \@jump_to,
+	);
+    push @story_board_files,\%story_board_files;
+    $recursions{$scenario_file} = $max_recursion_deep;
 }
 
 # index file
-@story_board_files = sort { $a cmp $b } @story_board_files;
+# start scenario files
+@story_board_files = sort { $a->{'scenario'} cmp $b->{'scenario'} } @story_board_files;
 my $index_html = "<html><body>\n";
 $index_html .= 'scenario list';
 $index_html .= '<ul>';
 for my $story_board_file (@story_board_files){
-    if($story_board_file =~ /gen_(.*?)\.html/){
-	my $scenario_name = $1;
-        $index_html .= '<li><a href="'.$story_board_file.'">'.$scenario_name.'</a></li>';
-    }
+    $index_html .= '<li><a href="'.'gen_'.$story_board_file->{scenario}.'.html">'.$story_board_file->{scenario}.'</a></li>';
 }
 $index_html .= '</ul>';
+# end scenario files
+
 $index_html .= '</body></html>';
 my $output_filename = $output_directory."/index.html";
 open(DATAFILE, ">", $output_filename) or die("Error $output_filename $!");
@@ -164,3 +194,29 @@ sub unique_array {
     @hash{@array} = ();
     return keys %hash;
 }
+
+sub open_scenario_file_to_strings {
+    my $filename = shift;
+    my $lines;
+    open(DATAFILE, "<",$filename) or die("Error $filename $!");
+    while(my $line = <DATAFILE>){
+	chomp($line);
+	$lines .= $line."\n";
+    }
+    close(DATAFILE);
+    $lines = decode("utf8",$lines);
+    my @scenario_lines = split(/\r\n|\n/,$lines);
+    return \@scenario_lines;
+}
+
+sub check_scenario_in_jumps {
+    my $lines = shift;
+    my @jump_to = ();
+    for my $line (@$lines){
+	if($line =~ /\[jump.*?storage="(.*?)"/){
+	    push @jump_to,$1;
+	}
+    }
+    return \@jump_to;
+}
+
