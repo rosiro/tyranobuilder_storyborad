@@ -136,7 +136,6 @@ for my $scenario_file (@scenario_files){
     open(DATAFILE, ">", $output_filename) or die("Error $output_filename $!");
     print DATAFILE encode("utf8",$scenario_html);
     close(DATAFILE);
-    exit;
 }
 
 
