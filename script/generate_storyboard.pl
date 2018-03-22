@@ -2,7 +2,7 @@ use strict;
 use warnings;
 use utf8;
 use Encode;
-use Data::Printer;
+#use Data::Printer;
 
 my $project_directory = $ARGV[0];
 my $output_directory = $ARGV[1];
@@ -18,16 +18,18 @@ unless($output_directory){
 }
 
 my $scenario_directory = $project_directory.'/data/scenario/';
-my $bgimage_directory = "../".$project_directory.'/data/bgimage';
+my $bgimage_directory = $project_directory.'/data/bgimage';
 # directory files to @scenario_files
 my @scenario_files = ();
 opendir(DIRHANDLE, $scenario_directory);
+print $scenario_directory."\n";
 foreach(readdir(DIRHANDLE)){
     next if /^\.{1,2}|~$/;
     push @scenario_files,$_;
 }
 closedir(DIRHANDLE);
 
+my @story_board_files = ();
 for my $scenario_file (@scenario_files){
 
     # open  file data
@@ -73,19 +75,17 @@ for my $scenario_file (@scenario_files){
 	$line_cnt++;
 
 	# background
-	if($scenario_line =~ /\[bg/ && 
-	   $scenario_line =~ /storage="(.*?)"/){
+	if($scenario_line =~ /\[bg.*?storage="(.*?)"/){
 	    $now_background = $1;
 	}
-
+	
 	# music
-	if($scenario_line =~ /\[playbgm/ && 
-	   $scenario_line =~ /storage="(.*?)"/){
+	elsif($scenario_line =~ /\[playbgm.*?storage="(.*?)"/){
 	    $now_bgm = $1;
 	}
 	
 	# charactors
-	if($scenario_line =~ /#(.*?)$/){
+	elsif($scenario_line =~ /#(.*?)$/){
 	    $now_charactor = $1;
 	}
 	
@@ -105,12 +105,12 @@ for my $scenario_file (@scenario_files){
 	}
 	else{
 	    $capture_flg = 1;
-	    print $scenario_line."\n";
+	    #print $scenario_line."\n";
 	}
 	if($capture_flg == 1){
 	    $scenario_html .= "<tr>";
 	    if($now_background){
-		$scenario_html .= "<td><img src=\"".$bgimage_directory.'/'.$now_background."\" width=\"100\"></td>"; # background
+		$scenario_html .= "<td><img src=\"".$project_directory.'/data/bgimage/'.$now_background."\" width=\"100\"></td>"; # background
 	    }
 	    else{
 		$scenario_html .= "<td></td>"; # background
@@ -129,14 +129,33 @@ for my $scenario_file (@scenario_files){
 	}
     }
     $scenario_html .= "</table></body></html>";
-    p $scenario_html;
+    #p $scenario_html;
 
     # write html
-    my $output_filename = $output_directory."/gen_".$scenario_file.".html";
-    open(DATAFILE, ">", $output_filename) or die("Error $output_filename $!");
+    my $output_filename = "gen_".$scenario_file.".html";
+    open(DATAFILE, ">", $output_directory.'/'.$output_filename) or die("Error $output_filename $!");
     print DATAFILE encode("utf8",$scenario_html);
     close(DATAFILE);
+    push @story_board_files,$output_filename;
 }
+
+# index file
+@story_board_files = sort { $a cmp $b } @story_board_files;
+my $index_html = "<html><body>\n";
+$index_html .= 'scenario list';
+$index_html .= '<ul>';
+for my $story_board_file (@story_board_files){
+    if($story_board_file =~ /gen_(.*?)\.html/){
+	my $scenario_name = $1;
+        $index_html .= '<li><a href="'.$story_board_file.'">'.$scenario_name.'</a></li>';
+    }
+}
+$index_html .= '</ul>';
+$index_html .= '</body></html>';
+my $output_filename = $output_directory."/index.html";
+open(DATAFILE, ">", $output_filename) or die("Error $output_filename $!");
+print DATAFILE encode("utf8",$index_html);
+close(DATAFILE);
 
 
 sub unique_array {

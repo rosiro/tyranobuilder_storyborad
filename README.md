@@ -16,5 +16,10 @@ perl -Ilib script/generate_storyboard.pl ティラノビルダープロジェク
 
 ## Todo
 - キャラクターがちゃんと退出しているかどうか
+- シナリオのつながりを可視化
 - シナリオが最後まで行くかどうか（途切れていないか）
 
+
+## changelog
+- 2018/03/22 generate index.html.
+- 2018/03/22 github upload.
